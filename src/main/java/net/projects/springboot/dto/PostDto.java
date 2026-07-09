@@ -18,6 +18,9 @@ public class PostDto {
     @NotEmpty(message = "Post title should not be empty")
     private String title;
     private String url;
+    @NotEmpty(message = "Post title should not be empty")
+    private String user;
+    private String email;
     @NotEmpty(message = "Post content should not be empty")
     private String content;
     @NotEmpty(message = "Post short description should be empty")

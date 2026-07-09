@@ -26,6 +26,10 @@ public class Post {
     private String title;
     private String url;
 
+    @Column(nullable = false)
+    private String user;
+    private String email;
+
     @Lob
     @Column(nullable = false)
     private String content;

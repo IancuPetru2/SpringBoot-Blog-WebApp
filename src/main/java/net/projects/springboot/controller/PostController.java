@@ -13,6 +13,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import net.projects.springboot.util.ROLE;
 
 @Controller
 public class PostController {
@@ -24,7 +25,10 @@ public class PostController {
         this.postService = postService;
         this.commentService = commentService;
     }
-
+    @GetMapping("/admin")
+    public String publicPosts(Model model) {
+        return "redirect:/admin/posts";
+    }
     // create handler method, GET request and return model and view
     @GetMapping("/admin/posts")
     public String posts(Model model){
@@ -130,17 +134,27 @@ public class PostController {
     @GetMapping("/admin/posts/search")
     public String searchPosts(@RequestParam(value = "query") String query,
                               Model model){
-        List<PostDto> posts = postService.searchPosts(query);
+        String userRole = SecurityUtils.getRole();
+        List<PostDto> posts;
+//        List<PostDto> posts = postService.searchPosts(query);
+        if (ROLE.ROLE_ADMIN.name().equals(userRole)) {
+            posts = postService.searchPosts(query);
+        } else {
+            posts = postService.findPostsByUser()
+                    .stream()
+                    .filter(post -> post.getTitle().toLowerCase().contains(query.toLowerCase())
+                            || post.getShortDescription().toLowerCase().contains(query.toLowerCase()))
+                    .toList();
+        }
         model.addAttribute("posts", posts);
         return "admin/posts";
     }
 
     private static String getUrl(String postTitle){
-        // OOPS Concepts Explained in Java
-        // oops-concepts-explained-in-java
         String title = postTitle.trim().toLowerCase();
         String url = title.replaceAll("\\s+", "-");
         url = url.replaceAll("[^A-Za-z0-9]", "-");
         return url;
     }
+
 }

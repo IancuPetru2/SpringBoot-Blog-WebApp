@@ -49,6 +49,8 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(email);
         Post post = PostMapper.mapToPost(postDto);
         post.setCreatedBy(user);
+        post.setUser(user.getName());
+        post.setEmail(user.getEmail());
         postRepository.save(post);
     }
 
@@ -64,6 +66,8 @@ public class PostServiceImpl implements PostService {
         User createdBy = userRepository.findByEmail(email);
         Post post = PostMapper.mapToPost(postDto);
         post.setCreatedBy(createdBy);
+        post.setUser(createdBy.getName());
+        post.setEmail(createdBy.getEmail());
         postRepository.save(post);
     }
 

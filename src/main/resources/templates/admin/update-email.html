@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -5,36 +6,85 @@
     <title>Update Email</title>
 </head>
 <body>
-
 <div th:replace="admin/header :: header"></div>
 <div th:replace="admin/header :: navbar"></div>
 
 <div class="container">
-    <h2>Update Email Address</h2>
+    <div style="max-width: 460px; margin: 3rem auto;">
 
-    <!-- Success message -->
-    <div th:if="${param.success}">
-        <p style="color: green;">Email updated successfully!</p>
-    </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 style="margin: 0;">Update email address</h5>
+                <small class="text-muted">Changes apply immediately after saving</small>
+            </div>
+            <div class="card-body">
 
-    <!-- Error message -->
-    <div th:if="${emailError}">
-        <p style="color: red;" th:text="${emailError}"></p>
-    </div>
+                <div th:if="${param.success}" class="alert alert-success" role="alert">
+                    Email updated successfully.
+                </div>
+                <div th:if="${emailError}" class="alert alert-danger" role="alert" th:text="${emailError}"></div>
 
-    <form th:action="@{/update-email}" method="post">
-        <div>
-            <label>Current Email:</label>
-            <span th:text="${user.email}"></span>
+                <form th:action="@{/update-email}" method="post" novalidate id="emailForm">
+                    <div class="form-group">
+                        <label class="text-muted"><small>Current email</small></label>
+                        <input type="text" class="form-control" th:value="${user.email}" readonly disabled />
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="newEmail" class="text-muted"><small>New email</small></label>
+                        <input
+                                type="email"
+                                id="newEmail"
+                                name="newEmail"
+                                class="form-control"
+                                th:classappend="${emailError} ? ' is-invalid'"
+                                placeholder="you@example.com"
+                                autocomplete="email"
+                                required
+                        />
+                        <div class="invalid-feedback" th:if="${emailError}" th:text="${emailError}"></div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.5rem;">
+                        <a th:href="@{/admin/posts}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" id="submitBtn" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+
+            </div>
         </div>
-        <div>
-            <label for="newEmail">New Email:</label>
-            <input type="email" id="newEmail" name="newEmail" required />
-        </div>
-        <button type="submit" class="btn btn-primary">Update Email</button>
-    </form>
+
+        <p class="text-muted text-center" style="font-size: 12px; margin-top: 1rem;">
+            A verification link may be sent to your new address.
+        </p>
+    </div>
 </div>
 
 <div th:replace="admin/footer :: footer"></div>
+
+<script th:inline="javascript">
+    const currentEmail = /*[[${user.email}]]*/ '';
+    const form = document.getElementById('emailForm');
+    const input = document.getElementById('newEmail');
+
+    input.addEventListener('input', function() {
+      if (input.value.trim() === currentEmail) {
+        input.setCustomValidity('This is already your current email.');
+      } else {
+        input.setCustomValidity('');
+      }
+    });
+
+    form.addEventListener('submit', function(e) {
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        form.classList.add('was-validated');
+        return;
+      }
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+    });
+</script>
 </body>
 </html>

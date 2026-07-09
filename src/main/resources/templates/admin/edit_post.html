@@ -17,6 +17,8 @@
                 <form role="form" method="post" th:action="@{/admin/posts/{postId}(postId=${post.id})}" th:object="${post}">
                     <input type="hidden" th:field="*{url}">
                     <input type="hidden" th:field="*{createdOn}">
+                    <input type="hidden" th:field="*{user}">
+                    <input type="hidden" th:field="*{email}">
                     <div class="mb-3">
                         <label class="form-label"> Title </label>
                         <input

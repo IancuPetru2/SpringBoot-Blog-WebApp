@@ -16,6 +16,7 @@
             <th>#</th>
             <th>Email</th>
             <th>Comment</th>
+            <th >Created By</th>
             <th>Created Date</th>
             <th>Actions </th>
         </tr>
@@ -25,6 +26,7 @@
                 <td th:text="${iterStat.count}"></td>
                 <td th:text="${comment.email}"></td>
                 <td th:text="${comment.content}"></td>
+                <td th:text="${comment.name}"></td>
                 <td th:text="${#temporals.format(comment.createdOn, 'dd MMM yyyy')}"></td>
                 <td>
                     <a class="btn btn-danger" th:href="@{/admin/posts/comments/{commentId}(commentId=${comment.id})}">Delete</a>

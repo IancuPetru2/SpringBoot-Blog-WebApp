@@ -1,17 +1,22 @@
 package net.projects.springboot.controller;
+import lombok.RequiredArgsConstructor;
 import net.projects.springboot.dto.RegistrationDto;
-import org.springframework.web.bind.annotation.RequestParam;
+import net.projects.springboot.dto.UpdatePasswordDto;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import net.projects.springboot.entity.User;
 import net.projects.springboot.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-
+import jakarta.validation.Valid;
 import java.security.Principal;
+//import javax.validation.Valid
 
 @Controller
 public class AuthController {
@@ -24,12 +29,13 @@ public class AuthController {
 
     // handler method to handle login page request
     @GetMapping("/login")
-    public String loginPage(){
+    public String loginPage() {
         return "login";
     }
+
     // handler method to handle user registration request
     @GetMapping("/register")
-    public String showRegistrationForm(Model model){
+    public String showRegistrationForm(Model model) {
         // this object holds form data
         RegistrationDto user = new RegistrationDto();
         model.addAttribute("user", user);
@@ -40,29 +46,29 @@ public class AuthController {
     @PostMapping("/register/save")
     public String register(@Valid @ModelAttribute("user") RegistrationDto user,
                            BindingResult result,
-                           Model model){
+                           Model model) {
         User existingUser = userService.findByEmail(user.getEmail());
-        if(existingUser != null && existingUser.getEmail() !=null && !existingUser.getEmail().isEmpty()){
+        if (existingUser != null && existingUser.getEmail() != null && !existingUser.getEmail().isEmpty()) {
             result.rejectValue("email", null, "There is already a user with same email id");
         }
 
-        if(result.hasErrors()){
+        if (result.hasErrors()) {
+            user.setPassword(null);
             model.addAttribute("user", user);
             return "register";
         }
         userService.saveUser(user);
         return "redirect:/register?success";
+
     }
-
-
 
 
     // handler method to show the update email form
     @GetMapping("/update-email")
-    public String showUpdateEmailForm(Principal principal, Model model){
+    public String showUpdateEmailForm(Principal principal, Model model) {
         User user = userService.findByEmail(principal.getName());
 
-        if(user == null){
+        if (user == null) {
             return "redirect:/login?error";
         }
         model.addAttribute("user", user);
@@ -85,5 +91,59 @@ public class AuthController {
 
         userService.updateEmail(currentUser.getId(), newEmail);
         return "redirect:/update-email?success";
+    }
+
+
+
+@GetMapping("/update-password")
+public String showUpdatePasswordForm(Principal principal, Model model) {
+    User user = userService.findByEmail(principal.getName());
+
+    if (user == null) {
+        return "redirect:/login?error";
+    }
+
+    model.addAttribute("updatePasswordDto", new UpdatePasswordDto()); // matches th:object
+    model.addAttribute("user", user);
+    return "admin/update-password";
+}
+
+    @PostMapping("/update-password")
+    public String updatePassword(@Valid @ModelAttribute("updatePasswordDto") UpdatePasswordDto dto,
+                                 BindingResult result,
+                                 Principal principal,
+                                 Model model) {
+
+        if (result.hasErrors()) {
+            model.addAttribute("updatePasswordDto", new UpdatePasswordDto());
+            return "admin/update-password";
+        }
+
+        if (!dto.getNewPassword().equals(dto.getConfirmNewPassword())) {
+            model.addAttribute("updatePasswordDto", new UpdatePasswordDto()); // ✅ reset
+            model.addAttribute("error", "New passwords do not match");
+            return "admin/update-password";
+        }
+
+        try {
+            User currentUser = userService.findByEmail(principal.getName());
+            userService.updatePassword(
+                    String.valueOf(currentUser.getId()),
+                    dto.getCurrentPassword(),
+                    dto.getNewPassword()
+            );
+            model.addAttribute("updatePasswordDto", new UpdatePasswordDto()); // ✅ reset
+            model.addAttribute("message", "Password updated successfully");
+
+        } catch (RuntimeException e) {
+            model.addAttribute("updatePasswordDto", new UpdatePasswordDto()); // ✅ reset
+            model.addAttribute("error", e.getMessage());
+        }
+
+        return "admin/update-password";
+    }
+    @GetMapping("/settings")
+    public String settings() {
+        return "admin/settings";
     }
 }

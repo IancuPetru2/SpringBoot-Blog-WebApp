@@ -24,9 +24,6 @@ public class RegistrationDto {
     @Email
     private String email;
 
-    @NotEmpty(message = "Email should not be empty or null")
-    @Email
-    private String update;
 
     @NotEmpty(message = "Password should not be empty")
     private String password;
