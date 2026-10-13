@@ -26,6 +26,10 @@ public class User {
     private String email;
     @Column(nullable = false)
     private String password;
+
+    @Column(name = "summary_generation_count", nullable = false)
+    private int summaryGenerationCount = 0;
+
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
             name = "users_roles",

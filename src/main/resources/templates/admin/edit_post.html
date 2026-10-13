@@ -1,24 +1,61 @@
+
+
+
+
 <!DOCTYPE html>
 <html lang="en"
       xmlns:th="http://www.thymeleaf.org"
->
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot Thymeleaf Blog App</title>
+    <link crossorigin="anonymous"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+          rel="stylesheet">
+<!--    <link href="/css/quill.snow.css" rel="stylesheet">-->
+<!--    <script src="/js/quill.js"></script>-->
+<!--    <script src="/js/ckeditor.js"></script>-->
+    <script src="https://cdn.ckeditor.com/ckeditor5/34.2.0/classic/ckeditor.js"></script>
+    <style>
+        .ck-editor__editable {
+            min-height: 300px;
+        }
+    </style>
+    <script>
+        window.onpageshow = function(event) {
+            if (event.persisted) {
+                window.location.replace('/login');
+            }
+        };
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.replace('/login');
+            }
+        });
+    </script>
 
-<div th:replace="admin/header :: header"></div>
+
+</head>
 <body>
+<div th:replace="admin/header :: header"></div>
 <div th:replace="admin/header :: navbar"></div>
 <br /><br />
+
 <div class="container">
     <div class="row col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-center"> Edit Post</h2>
+                <h2 class="text-center">Edit Post</h2>
             </div>
             <div class="card-body">
-                <form role="form" method="post" th:action="@{/admin/posts/{postId}(postId=${post.id})}" th:object="${post}">
+
+                <form role="form" method="post" th:action="@{/admin/posts/{postId}(postId=${post.id})}" th:object="${post}" id="editPostForm">
                     <input type="hidden" th:field="*{url}">
                     <input type="hidden" th:field="*{createdOn}">
                     <input type="hidden" th:field="*{user}">
                     <input type="hidden" th:field="*{email}">
+
                     <div class="mb-3">
                         <label class="form-label"> Title </label>
                         <input
@@ -42,9 +79,7 @@
                                 rows="3"
                                 name="shortDescription"
                                 th:field="*{shortDescription}"
-                        >
-
-                        </textarea>
+                        ></textarea>
                         <p th:if="${#fields.hasErrors('shortDescription')}" class="text-danger"
                            th:errors="*{shortDescription}"></p>
                     </div>
@@ -55,37 +90,258 @@
                                 class="form-control"
                                 id="content"
                                 placeholder="Enter post content"
-                                rows="12"
+
                                 name="content"
                                 th:field="*{content}"
-                        >
-                        </textarea>
-                        <p th:if="${#fields.hasErrors('content')}" class="text-danger"
-                           th:errors="*{content}"></p>
+                        ></textarea>
+
+
+
+
+
+
+                        <p th:if="${#fields.hasErrors('content')}" class="text-danger" th:errors="*{content}"></p>
                     </div>
-                    <button type="submit" class="btn btn-primary">Submit</button>
+
+                    <a th:href="@{/admin/posts}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+
+                    <script th:inline="javascript">
+                        document.addEventListener('DOMContentLoaded', function () {
+                            let editorInstance;
+                            let contentWasEdited = false;
+                            window.formIsDirty = /*[[${#fields.hasErrors('*')}]]*/ false;
+                            window.hasSummary = /*[[${post.aiHook != null and !#strings.isEmpty(post.aiHook)}]]*/ false;
+
+                            const publishBtn = document.getElementById('publishBtn');
+                            const submitBtn = document.getElementById('submitBtn');
+
+                            function markDirty() {
+                                if (!window.formIsDirty) {
+                                    window.formIsDirty = true;
+                                    submitBtn.disabled = false;
+                                }
+                                if (publishBtn && window.hasSummary) {
+                                    publishBtn.disabled = true; // unsaved edits — don't allow publishing yet
+                                }
+                            }
+
+                            // Submit button's initial state
+                            submitBtn.disabled = !window.formIsDirty;
+                            // publishBtn's initial state is already correctly set server-side via th:disabled (based on summaryStale) — no JS override needed here.
+
+                            ClassicEditor
+                                .create( document.querySelector( '#content' ) )
+                                .then( editor => {
+                                    editorInstance = editor;
+                                    editor.model.document.on('change:data', () => {
+                                        contentWasEdited = true;
+                                        markDirty();
+                                    });
+                                } )
+                                .catch( error => {
+                                    console.error( error );
+                                } );
+
+                            document.getElementById('title').addEventListener('input', markDirty);
+                            document.getElementById('shortDescription').addEventListener('input', markDirty);
+
+                            document.getElementById('editPostForm').addEventListener('submit', function (e) {
+                                if (editorInstance && contentWasEdited) {
+                                    document.querySelector('#content').value = editorInstance.getData();
+                                }
+                                submitBtn.disabled = true;
+                                submitBtn.textContent = 'Submitting...';
+                            });
+                        });
+                    </script>
                 </form>
 
+                <!-- AI SUMMARY PANEL START -->
+                <div id="ai-summary-panel" th:data-post-id="${post.id}" style="margin-top: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 6px;">
+
+                    <button type="button" id="generate-summary-btn" class="btn btn-secondary" style="color: green"
+                            th:attr="data-has-summary=${post.aiHook != null}"
+                            th:disabled="${post.aiHook != null and !#authorization.expression('hasRole(''ADMIN'')')}">
+                        Generate summary
+                    </button>
+                    <span id="summary-status" style="margin-left: 8px; color: #666;"></span>
+
+                    <div id="summary-output" style="margin-top: 16px; display: none;">
+                        <div>
+                            <strong>Hook:</strong>
+                            <p id="summary-hook"></p>
+                        </div>
+                        <div>
+                            <strong>Excerpt:</strong>
+                            <p id="summary-excerpt"></p>
+                        </div>
+                        <div>
+                            <strong>TL;DR:</strong>
+                            <ul id="summary-tldr"></ul>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <form th:action="@{/admin/posts/{id}/summary/lock(id=${post.id})}" method="post"
+                      style="display:inline; margin-top: 12px;" id="publishForm">
+                    <input type="hidden" name="locked" th:value="${!post.aiSummaryLocked}" />
+
+                    <button type="submit" class="btn" id="publishBtn"
+                            th:classappend="${post.aiSummaryLocked} ? 'btn-success' : 'btn-outline-secondary'"
+
+                    th:disabled="${post.aiHook == null or #strings.isEmpty(post.aiHook) or post.aiSummaryLocked}">
+                        <span th:text="${post.aiSummaryLocked} ? 'Published to readers ✓' : 'Publish summary to readers'"></span>
+                    </button>
+
+                </form>
             </div>
         </div>
     </div>
-
 </div>
 <br /><br /><br /><br /><br />
 <div th:replace="admin/footer :: footer"></div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
         crossorigin="anonymous"></script>
-<script src="https://cdn.ckeditor.com/ckeditor5/34.2.0/classic/ckeditor.js"></script>
+
 <script>
-                        ClassicEditor
-                                .create( document.querySelector( '#content' ) )
-                                .then( editor => {
-                                        console.log( editor );
-                                } )
-                                .catch( error => {
-                                        console.error( error );
-                                } );
-                </script>
+    document.getElementById('generate-summary-btn').addEventListener('click', async function () {
+        if (this.dataset.hasSummary === 'true') {
+            if (!confirm('This will replace the current summary — continue?')) {
+                return;
+            }
+        }
+
+        const panel = document.getElementById('ai-summary-panel');
+        const postId = panel.dataset.postId;
+        const status = document.getElementById('summary-status');
+        const output = document.getElementById('summary-output');
+        const btn = document.getElementById('generate-summary-btn');
+
+        btn.disabled = true;
+        status.textContent = 'Generating...';
+
+        try {
+            const response = await fetch(`/admin/posts/${postId}/summary`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const text = await response.text();
+
+            if (!response.ok) {
+                throw new Error(text);
+            }
+
+            const data = JSON.parse(text);
+
+            document.getElementById('summary-hook').textContent = data.hook;
+            document.getElementById('summary-excerpt').textContent = data.excerpt;
+
+            const tldrList = document.getElementById('summary-tldr');
+            tldrList.innerHTML = '';
+            data.tldr.forEach(line => {
+                const li = document.createElement('li');
+                li.textContent = line;
+                tldrList.appendChild(li);
+            });
+
+            output.style.display = 'block';
+            status.textContent = 'Done.';
+            btn.dataset.hasSummary = 'true';
+            btn.disabled = false;
+              setTimeout(() => {
+        window.location.reload();
+    }, 800);
+             // NEW: a summary now exists — enable Publish (unless there are unsaved edits)
+        const publishBtn = document.getElementById('publishBtn');
+        if (publishBtn) {
+            window.hasSummary = true; // update the shared flag
+            if (!window.formIsDirty) {
+                publishBtn.disabled = false;
+            }
+        }
+
+        } catch (err) {
+            console.error(err);
+            status.textContent = 'Error: ' + err.message;
+            btn.disabled = false;
+        }
+    });
+</script>
+
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,6 @@
 package net.projects.springboot.controller;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import net.projects.springboot.dto.CommentDto;
 import net.projects.springboot.dto.PostDto;
@@ -7,13 +8,16 @@ import net.projects.springboot.service.CommentService;
 import net.projects.springboot.service.PostService;
 import net.projects.springboot.util.ROLE;
 import net.projects.springboot.util.SecurityUtils;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import net.projects.springboot.dto.PostSummaryResponse;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
-import net.projects.springboot.util.ROLE;
+
 
 @Controller
 public class PostController {
@@ -31,16 +35,27 @@ public class PostController {
     }
     // create handler method, GET request and return model and view
     @GetMapping("/admin/posts")
-    public String posts(Model model){
+    public String posts(
+            @RequestParam(value = "pageNo", defaultValue = "0") int pageNo,
+            @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,Model model){
         String role = SecurityUtils.getRole();
-        List<PostDto> posts = null;
+//       List<PostDto> posts = null;
+     //   Page<PostDto> posts;
+        Page<PostDto> page;
         if(ROLE.ROLE_ADMIN.name().equals(role)){
-            posts = postService.findAllPosts();
+            page = postService.findAllPosts(pageNo, pageSize);
         }else{
-            posts = postService.findPostsByUser();
+            page = postService.findPostsByUser(pageNo, pageSize);
         }
-        model.addAttribute("posts", posts);
-        return "/admin/posts";
+
+        model.addAttribute("posts", page.getContent());
+        model.addAttribute("currentPage", page.getNumber());
+        model.addAttribute("totalPages", page.getTotalPages());
+        model.addAttribute("isFirst",page.isFirst());
+        model.addAttribute("isLast", page.isLast());
+        model.addAttribute("query", "");
+
+        return "admin/posts";
     }
 
     // handler method to handle list comments request
@@ -89,8 +104,8 @@ public class PostController {
     // handler method to handle edit post request
     @GetMapping("/admin/posts/{postId}/edit")
     public String editPostForm(@PathVariable("postId") Long postId,
-                               Model model){
-
+                               Model model
+    ){
         PostDto postDto = postService.findPostById(postId);
         model.addAttribute("post", postDto);
         return "admin/edit_post";
@@ -119,35 +134,18 @@ public class PostController {
         return "redirect:/admin/posts";
     }
 
-    // handler method to handle view post request
+
+
     @GetMapping("/admin/posts/{postUrl}/view")
-    public String viewPost(@PathVariable("postUrl") String postUrl,
-                           Model model){
-        PostDto postDto = postService.findPostByUrl(postUrl);
-        model.addAttribute("post", postDto);
+    public String viewPost(
+            @PathVariable("postUrl") String postUrl,
+            Model model) {
+
+        PostDto post = postService.findPostByUrl(postUrl);
+
+        model.addAttribute("post", post);
+
         return "admin/view_post";
-
-    }
-
-    // handler method to handle search blog posts request
-    // localhost:8080/admin/posts/search?query=java
-    @GetMapping("/admin/posts/search")
-    public String searchPosts(@RequestParam(value = "query") String query,
-                              Model model){
-        String userRole = SecurityUtils.getRole();
-        List<PostDto> posts;
-//        List<PostDto> posts = postService.searchPosts(query);
-        if (ROLE.ROLE_ADMIN.name().equals(userRole)) {
-            posts = postService.searchPosts(query);
-        } else {
-            posts = postService.findPostsByUser()
-                    .stream()
-                    .filter(post -> post.getTitle().toLowerCase().contains(query.toLowerCase())
-                            || post.getShortDescription().toLowerCase().contains(query.toLowerCase()))
-                    .toList();
-        }
-        model.addAttribute("posts", posts);
-        return "admin/posts";
     }
 
     private static String getUrl(String postTitle){
@@ -156,5 +154,19 @@ public class PostController {
         url = url.replaceAll("[^A-Za-z0-9]", "-");
         return url;
     }
+
+    @PostMapping("/admin/posts/{postId}/summary")
+    @ResponseBody
+    public ResponseEntity<PostSummaryResponse> generateSummary(@PathVariable("postId") Long postId) {
+        return ResponseEntity.ok(postService.generateSummary(postId));
+    }
+    @PostMapping("/admin/posts/{postId}/summary/lock")
+    public String toggleSummaryLock(@PathVariable Long postId,
+                                    @RequestParam boolean locked) {
+        postService.setSummaryLocked(postId, locked);
+        return "redirect:/admin/posts/" + postId + "/edit";
+    }
+
+
 
 }

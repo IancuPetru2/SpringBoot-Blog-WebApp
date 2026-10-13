@@ -13,11 +13,23 @@
             <hr/>
             <h4 th:text="${post.user}"></h4>
             <hr />
+
             <h4 th:text="${post.shortDescription}"></h4>
             <hr />
             <div th:utext="${post.content}">
             </div>
             <hr />
+            <!-- AI Summary block -->
+<!--            <p style="color: blue;"><strong>generated summary</strong></p>-->
+            <div th:if="${post.aiHook != null and post.aiSummaryLocked}" class="alert alert-light border">
+                <p style="color: blue;"><strong>Generated summary</strong></p>
+                <p><strong th:text="${post.aiHook}"></strong></p>
+                <p th:text="${post.aiExcerpt}"></p>
+                <ul th:if="${post.aiTldr != null and !post.aiTldr.isEmpty()}">
+                    <li th:each="line : ${post.aiTldr}" th:text="${line}"></li>
+                </ul>
+            </div>
+
             <div>
                 <h3>Comments:</h3>
                 <div th:each = "comment: ${post.comments}">
@@ -106,6 +118,6 @@
     </div>
     <br /><br /><br />
 </div>
-<div th:replace="blog/footer :: footer"></div>
+
 </body>
 </html>

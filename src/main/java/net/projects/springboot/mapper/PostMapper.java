@@ -21,7 +21,14 @@ public class PostMapper {
                 .updatedOn(post.getUpdatedOn())
                 .comments(post.getComments().stream()
                         .map((comment) -> CommentMapper.mapToCommentDto(comment))
-                        .collect(Collectors.toSet()))
+                        .collect(Collectors.toSet())
+                )
+                . aiHook(post.getAiHook())
+                .aiExcerpt(post.getAiExcerpt())
+                .aiTldr(post.getAiTldr())
+                .aiSummaryGeneratedAt(post.getAiSummaryGeneratedAt())
+                .aiSummaryLocked(post.isAiSummaryLocked())
+                .contentUpdatedOn(post.getContentUpdatedOn())
                 .build();
     }
 
